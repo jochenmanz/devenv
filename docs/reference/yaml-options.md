@@ -26,7 +26,7 @@
 ```yaml
 inputs:
   nixpkgs:
-    url: github:NixOS/nixpkgs/nixos-22.05
+    url: github:NixOS/nixpkgs/nixos-22.11
   myproject:
     url: github:owner/repo/myproject
     flake: false
