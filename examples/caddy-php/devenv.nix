@@ -1,4 +1,4 @@
-{ pkgs, config, ... }:
+{ pkgs, config, inputs, lib, ... }:
 
 let
   phpPackage = pkgs.php.buildEnv {
@@ -19,6 +19,33 @@ in
       "pm.max_spare_servers" = 5;
     };
   };
+
+  services.mysql.enable = true;
+  services.mysql.initialDatabases = lib.mkDefault [{ name = "shopware"; }];
+  services.mysql.ensureUsers = lib.mkDefault [
+    {
+      name = "shopware";
+      password = "shopware";
+      ensurePermissions = { "*.*" = "ALL PRIVILEGES"; };
+    }
+  ];
+  services.mysql.settings = {
+    mysql = {
+      user = "shopware";
+      password = "shopware";
+    };
+    mysqldump = {
+      user = "shopware";
+      password = "shopware";
+    };
+    mysqladmin = {
+      user = "shopware";
+      password = "shopware";
+    };
+  };
+
+
+  env.DATABASE_URL = lib.mkDefault "mysql://shopware:shopware@127.0.0.1:3306/shopware";
 
   services.caddy.enable = true;
   services.caddy.virtualHosts."http://localhost:8000" = {
