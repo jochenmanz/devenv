@@ -4,7 +4,9 @@
   languages.c.enable = true;
   languages.clojure.enable = true;
   languages.cplusplus.enable = true;
+  languages.crystal.enable = true;
   languages.cue.enable = true;
+  languages.dart.enable = true;
   languages.deno.enable = true;
   languages.dotnet.enable = true;
   languages.elixir.enable = true;
@@ -14,6 +16,7 @@
   languages.haskell.enable = true;
   languages.java.enable = true;
   languages.javascript.enable = true;
+  languages.julia.enable = true;
   languages.kotlin.enable = true;
   languages.lua.enable = true;
   languages.nim.enable = true;
@@ -24,6 +27,7 @@
   languages.purescript.enable = true;
   languages.python.enable = true;
   languages.r.enable = true;
+  languages.racket.enable = true;
   languages.robotframework.enable = true;
   languages.ruby.enable = true;
   languages.rust.enable = true;

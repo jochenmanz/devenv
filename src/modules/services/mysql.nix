@@ -12,9 +12,13 @@ let
   startScript = pkgs.writeShellScriptBin "start-mysql" ''
     set -euo pipefail
 
-    if [[ ! -d "$MYSQL_HOME" ]]; then
+    if [[ ! -d "$MYSQL_HOME" || ! -f "$MYSQL_HOME/ibdata1" ]]; then
       mkdir -p "$MYSQL_HOME"
-      ${if isMariaDB then "${cfg.package}/bin/mysql_install_db" else "${cfg.package}/bin/mysqld"} ${mysqldOptions} ${optionalString (!isMariaDB) "--initialize-insecure"}
+      ${
+        if isMariaDB
+          then "${cfg.package}/bin/mysql_install_db ${mysqldOptions} --auth-root-authentication-method=normal"
+          else "${cfg.package}/bin/mysqld ${mysqldOptions} --initialize-insecure"
+      }
     fi
 
     exec ${cfg.package}/bin/mysqld ${mysqldOptions}
@@ -23,16 +27,16 @@ let
     PATH="${lib.makeBinPath [ cfg.package pkgs.coreutils ]}:$PATH"
     set -euo pipefail
 
-    while ! ${cfg.package}/bin/mysqladmin ping ${optionalString (!isMariaDB) "-u root --password=''"} --silent; do
+    while ! MYSQL_PWD="" ${cfg.package}/bin/mysqladmin ping -u root --silent; do
       sleep 1
     done
 
     ${concatMapStrings (database: ''
       # Create initial databases
       if ! test -e "$MYSQL_HOME/${database.name}"; then
-          echo "Creating initial database: ${database.name}"
-          ( echo 'create database `${database.name}`;'
-            ${optionalString (database.schema != null) ''
+        echo "Creating initial database: ${database.name}"
+        ( echo 'create database `${database.name}`;'
+          ${optionalString (database.schema != null) ''
             echo 'use `${database.name}`;'
             # TODO: this silently falls through if database.schema does not exist,
             # we should catch this somehow and exit, but can't do it here because we're in a subshell.
@@ -43,19 +47,20 @@ let
             then
                 cat ${database.schema}/mysql-databases/*.sql
             fi
-            ''}
-          ) | ${cfg.package}/bin/mysql ${mysqlOptions} ${optionalString (!isMariaDB) "-u root --password=''"} -N
+          ''}
+        ) | MYSQL_PWD="" ${cfg.package}/bin/mysql -u root
       fi
     '') cfg.initialDatabases}
 
     ${concatMapStrings (user:
       ''
+        echo "Adding user: ${user.name}"
         ${optionalString (user.password != null) "password='${user.password}'"}
         ( echo "CREATE USER IF NOT EXISTS '${user.name}'@'localhost' ${optionalString (user.password != null) "IDENTIFIED WITH mysql_native_password BY '$password'"};"
           ${concatStringsSep "\n" (mapAttrsToList (database: permission: ''
             echo "GRANT ${permission} ON ${database} TO '${user.name}'@'localhost';"
           '') user.ensurePermissions)}
-        ) | ${cfg.package}/bin/mysql ${mysqlOptions} ${optionalString (!isMariaDB) "-u root --password=''"} -N
+        ) | MYSQL_PWD="" ${cfg.package}/bin/mysql -u root -N
     '') cfg.ensureUsers}
 
     # We need to sleep until infinity otherwise all processes stop
@@ -136,7 +141,7 @@ in
         options = {
           name = lib.mkOption {
             type = types.str;
-            description = lib.mdDoc ''
+            description = ''
               Name of the user to ensure.
             '';
           };
@@ -144,7 +149,7 @@ in
           password = lib.mkOption {
             type = types.nullOr types.str;
             default = null;
-            description = lib.mdDoc ''
+            description = ''
               Password of the user to ensure.
             '';
           };
@@ -152,7 +157,7 @@ in
           ensurePermissions = lib.mkOption {
             type = types.attrsOf types.str;
             default = { };
-            description = lib.mdDoc ''
+            description = ''
               Permissions to ensure for the user, specified as attribute set.
               The attribute names specify the database and tables to grant the permissions for,
               separated by a dot. You may use wildcards here.
@@ -173,7 +178,7 @@ in
         };
       });
       default = [ ];
-      description = lib.mdDoc ''
+      description = ''
         Ensures that the specified users exist and have at least the ensured permissions.
         The MySQL users will be identified using Unix socket authentication. This authenticates the Unix user with the
         same name only, and that without the need for a password.
