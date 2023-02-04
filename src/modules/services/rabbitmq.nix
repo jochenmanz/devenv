@@ -134,6 +134,7 @@ in
 
     services.rabbitmq.plugins = optional cfg.managementPlugin.enable "rabbitmq_management";
 
+    env.RABBITMQ_NODENAME = "rabbit@localhost";
     env.RABBITMQ_DATA_DIR = config.env.DEVENV_STATE + "/rabbitmq";
     env.RABBITMQ_MNESIA_BASE = config.env.RABBITMQ_DATA_DIR + "/mnesia";
     env.RABBITMQ_LOGS = "-";
